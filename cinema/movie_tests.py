@@ -1,16 +1,19 @@
-from django.forms import model_to_dict
-from django.test import TestCase
+import shutil
+import tempfile
 
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+from PIL import Image
 
 from cinema.models import Movie, Genre, Actor
-from cinema.serializers import MovieSerializer, MovieListSerializer, MovieDetailSerializer
+from cinema.serializers import MovieListSerializer, MovieDetailSerializer
 
 MOVIE_URL = reverse("cinema:movie-list")
 
+TEST_MEDIA_ROOT = tempfile.mkdtemp()
 
 def detail_url(movie_id):
     return reverse("cinema:movie-detail", args=[movie_id])
@@ -23,6 +26,9 @@ def sample_movie(**params) -> Movie:
     }
     defaults.update(params)
     return Movie.objects.create(**defaults)
+
+def image_upload_url(movie_id):
+    return reverse("cinema:movie-upload-image", args=[movie_id])
 
 
 class UnauthenticatedMovieViewTest(APITestCase):
@@ -210,3 +216,29 @@ class MovieAdminViewTest(APITestCase):
         url = detail_url(movie.id)
         response = self.client.put(url, {"title": "Updated Title"})
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+class MovieImageUploadTest(APITestCase):
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser(
+            email="admin@movie.com",
+            password="admin_T3st",
+        )
+        self.client.force_authenticate(user=self.user)
+        self.movie = sample_movie()
+
+    def test_upload_image(self):
+        url = image_upload_url(movie_id=self.movie.id)
+        image = Image.new("RGB", (100, 100))
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_file:
+            image.save(tmp_file, format="JPEG")
+            with open(tmp_file.name, "rb") as fp:
+                response = self.client.post(url, {"image": fp}, format="multipart")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
