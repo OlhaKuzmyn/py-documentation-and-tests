@@ -15,8 +15,10 @@ MOVIE_URL = reverse("cinema:movie-list")
 
 TEST_MEDIA_ROOT = tempfile.mkdtemp()
 
+
 def detail_url(movie_id):
     return reverse("cinema:movie-detail", args=[movie_id])
+
 
 def sample_movie(**params) -> Movie:
     defaults = {
@@ -26,6 +28,7 @@ def sample_movie(**params) -> Movie:
     }
     defaults.update(params)
     return Movie.objects.create(**defaults)
+
 
 def image_upload_url(movie_id):
     return reverse("cinema:movie-upload-image", args=[movie_id])
@@ -92,7 +95,9 @@ class MovieAuthorisedViewTest(APITestCase):
         movie_serializer = MovieListSerializer(self.movie)
         movie_actors_serializer = MovieListSerializer(self.movie_actors)
         movie_genres_serializer = MovieListSerializer(self.movie_genres)
-        movie_actors_genres_serializer = MovieListSerializer(self.movie_with_actors_genres)
+        movie_actors_genres_serializer = MovieListSerializer(
+            self.movie_with_actors_genres
+        )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn(movie_serializer.data, response.data)
@@ -104,20 +109,44 @@ class MovieAuthorisedViewTest(APITestCase):
             MOVIE_URL,
             data={"genres": f"{self.genre_1.id}, {self.genre_2.id}"}
         )
-        self.assertEqual(filter_genres_response.status_code, status.HTTP_200_OK)
-        self.assertIn(movie_genres_serializer.data, filter_genres_response.data)
-        self.assertIn(movie_actors_genres_serializer.data, filter_genres_response.data)
+        self.assertEqual(
+            filter_genres_response.status_code,
+            status.HTTP_200_OK
+        )
+        self.assertIn(
+            movie_genres_serializer.data,
+            filter_genres_response.data
+        )
+        self.assertIn(
+            movie_actors_genres_serializer.data,
+            filter_genres_response.data
+        )
         self.assertNotIn(movie_serializer.data, filter_genres_response.data)
-        self.assertNotIn(movie_actors_serializer.data, filter_genres_response.data)
+        self.assertNotIn(
+            movie_actors_serializer.data,
+            filter_genres_response.data
+        )
 
         filter_actors_response = self.client.get(
             MOVIE_URL,
             data={"actors": f"{self.actor1.id}, {self.actor2.id}"}
         )
-        self.assertEqual(filter_actors_response.status_code, status.HTTP_200_OK)
-        self.assertIn(movie_actors_serializer.data, filter_actors_response.data)
-        self.assertIn(movie_actors_genres_serializer.data, filter_actors_response.data)
-        self.assertNotIn(movie_genres_serializer.data, filter_actors_response.data)
+        self.assertEqual(
+            filter_actors_response.status_code,
+            status.HTTP_200_OK
+        )
+        self.assertIn(
+            movie_actors_serializer.data,
+            filter_actors_response.data
+        )
+        self.assertIn(
+            movie_actors_genres_serializer.data,
+            filter_actors_response.data
+        )
+        self.assertNotIn(
+            movie_genres_serializer.data,
+            filter_actors_response.data
+        )
         self.assertNotIn(movie_serializer.data, filter_actors_response.data)
 
     def test_retrieve_movie(self):
@@ -159,7 +188,6 @@ class MovieAdminViewTest(APITestCase):
             last_name="Test Actor Last"
         )
 
-
     def test_create_movie(self):
         payload = {
             "title": "Forbidden Title",
@@ -199,7 +227,10 @@ class MovieAdminViewTest(APITestCase):
         movie = sample_movie()
         url = detail_url(movie.id)
         response = self.client.delete(url)
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
     def test_update_movie(self):
         movie = sample_movie()
@@ -209,13 +240,19 @@ class MovieAdminViewTest(APITestCase):
             "description": "Updated Description",
             "duration": 200,
         })
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
     def test_partial_update_movie(self):
         movie = sample_movie()
         url = detail_url(movie.id)
         response = self.client.put(url, {"title": "Updated Title"})
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
@@ -237,8 +274,12 @@ class MovieImageUploadTest(APITestCase):
     def test_upload_image(self):
         url = image_upload_url(movie_id=self.movie.id)
         image = Image.new("RGB", (100, 100))
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(
+                suffix=".jpg", delete=False
+        ) as tmp_file:
             image.save(tmp_file, format="JPEG")
             with open(tmp_file.name, "rb") as fp:
-                response = self.client.post(url, {"image": fp}, format="multipart")
+                response = self.client.post(
+                    url, {"image": fp}, format="multipart"
+                )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
